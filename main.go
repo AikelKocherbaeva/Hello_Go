@@ -13,6 +13,13 @@ func main() {
 	handleFunc()
 }
 
+type Article struct {
+	Id                     uint16
+	Title, Anons, FullText string
+}
+
+var posts = []Article{}
+
 func handleFunc() {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 	http.HandleFunc("/", index)
@@ -26,8 +33,30 @@ func index(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
 	}
+	db, err := sql.Open("mysql", "root:123@tcp(127.0.0.1:3306)/golang")
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
 
-	t.ExecuteTemplate(w, "index", nil)
+	//Выборка данных
+	res, err := db.Query("SELECT * FROM `articles`")
+	if err != nil {
+		panic(err)
+	}
+	posts = []Article{}
+	for res.Next() {
+		var post Article
+		err = res.Scan(&post.Id, &post.Title, &post.Anons, &post.FullText)
+		if err != nil {
+			panic(err)
+		}
+
+		posts = append(posts, post)
+
+	}
+
+	t.ExecuteTemplate(w, "index", posts)
 }
 func create(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("templates/create.html", "templates/header.html", "templates/footer.html")
